@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Супервайзер - Сбор заявок</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans pb-24">
+
+    <!-- Экран регистрации супервайзера -->
+    <div id="auth-screen" class="fixed inset-0 z-50 bg-gray-900 flex flex-col items-center justify-center p-6 hidden">
+        <div class="bg-gray-800 p-6 rounded-xl shadow-2xl w-full max-w-sm border border-gray-700">
+            <h2 class="text-xl font-bold text-green-400 mb-2 text-center">Регистрация супервайзера</h2>
+            <p class="text-xs text-gray-400 mb-6 text-center">Введите ваши данные для отчетов</p>
+            
+            <input type="text" id="reg-name" placeholder="Ваше ФИО (напр. Ионов И.А.)" class="w-full bg-gray-700 p-3 rounded mb-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500">
+            <input type="tel" id="reg-phone" placeholder="Номер телефона (+992...)" class="w-full bg-gray-700 p-3 rounded mb-6 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500">
+            
+            <button onclick="saveSupervisorData()" class="w-full bg-green-600 hover:bg-green-500 p-3 rounded font-bold text-white transition">Сохранить и начать</button>
+        </div>
+    </div>
+
+    <!-- Верхняя панель -->
+    <header class="bg-gray-800 p-4 shadow-md sticky top-0 z-10 flex justify-between items-center">
+        <div>
+            <h1 class="text-lg font-bold text-green-400">Сбор заявок</h1>
+            <span id="supervisor-badge" class="text-xs text-gray-400"></span>
+        </div>
+        <span id="cart-counter" class="bg-green-500 text-gray-900 px-2 py-1 rounded-full text-xs font-bold">0</span>
+    </header>
+
+    <!-- Контент -->
+    <main class="p-4">
+        <div id="tab-order">
+            <div class="bg-gray-800 p-4 rounded-lg shadow mb-6">
+                <h2 class="text-lg font-semibold mb-3 border-b border-gray-700 pb-2">Детали точки</h2>
+                <input type="text" id="shop-name" placeholder="Название магазина" class="w-full bg-gray-700 p-3 rounded mb-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500">
+                <input type="tel" id="shop-phone" placeholder="Телефон владельца точки" class="w-full bg-gray-700 p-3 rounded mb-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500">
+                
+                <div class="flex gap-2">
+                    <button onclick="getGPS()" class="flex-1 bg-blue-600 hover:bg-blue-500 p-3 rounded font-semibold transition">📍 Захватить GPS</button>
+                </div>
+                <div id="gps-status" class="text-sm mt-2 text-gray-400">Координаты не заданы</div>
+                <div id="manual-gps" class="hidden flex gap-2 mt-2">
+                    <input type="text" id="lat" placeholder="Широта (Lat)" class="w-1/2 bg-gray-700 p-2 rounded text-sm">
+                    <input type="text" id="lng" placeholder="Долгота (Lng)" class="w-1/2 bg-gray-700 p-2 rounded text-sm">
+                </div>
+            </div>
+
+            <h2 class="text-lg font-semibold mb-3">Каталог товаров</h2>
+            <div id="catalog-container" class="space-y-3"></div>
+
+            <button onclick="saveOrder()" class="w-full bg-green-600 hover:bg-green-500 p-4 rounded-lg font-bold text-lg mt-6 shadow-lg transition">✅ Сохранить точку в список</button>
+        </div>
+
+        <div id="tab-list" class="hidden">
+            <h2 class="text-lg font-semibold mb-3 border-b border-gray-700 pb-2">Собранные заявки</h2>
+            <div id="orders-list" class="space-y-3 mb-6">
+                <div class="text-gray-400 text-center py-4">Пока нет сохраненных заявок</div>
+            </div>
+            <button onclick="exportJSON()" class="w-full bg-purple-600 hover:bg-purple-500 p-4 rounded-lg font-bold text-lg shadow-lg transition">⬇️ Скачать JSON для доставщика</button>
+        </div>
+
+        <div id="tab-settings" class="hidden">
+            <h2 class="text-lg font-semibold mb-3 border-b border-gray-700 pb-2">Профиль супервайзера</h2>
+            <div class="bg-gray-800 p-4 rounded-lg shadow mb-6">
+                <div id="profile-info" class="font-bold text-white mb-3"></div>
+                <button onclick="openAuthScreen()" class="w-full bg-gray-700 hover:bg-gray-600 p-2 rounded text-sm">Изменить данные</button>
+            </div>
+            <h2 class="text-lg font-semibold mb-3 border-b border-gray-700 pb-2">Добавление товаров</h2>
+            <div class="bg-gray-800 p-4 rounded-lg shadow mb-6">
+                <input type="text" id="new-category" placeholder="Категория" class="w-full bg-gray-700 p-3 rounded mb-3 text-white">
+                <input type="text" id="new-product" placeholder="Название товара" class="w-full bg-gray-700 p-3 rounded mb-3 text-white">
+                <button onclick="addProductToCatalog()" class="w-full bg-blue-600 hover:bg-blue-500 p-3 rounded font-semibold">Добавить в каталог</button>
+            </div>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 w-full bg-gray-800 border-t border-gray-700 flex justify-around p-3 pb-safe z-20">
+        <button onclick="switchTab('order')" id="btn-tab-order" class="text-green-400 font-semibold flex flex-col items-center"><span class="text-xl">📝</span><span class="text-xs">Сбор</span></button>
+        <button onclick="switchTab('list')" id="btn-tab-list" class="text-gray-400 flex flex-col items-center"><span class="text-xl">📋</span><span class="text-xs">Заявки</span></button>
+        <button onclick="switchTab('settings')" id="btn-tab-settings" class="text-gray-400 flex flex-col items-center"><span class="text-xl">⚙️</span><span class="text-xs">Настройки</span></button>
+    </nav>
+
+    <script>
+        let supervisor = JSON.parse(localStorage.getItem('supervisorProfile')) || null;
+
+        function checkAuth() {
+            if (!supervisor || !supervisor.name || !supervisor.phone) {
+                document.getElementById('auth-screen').classList.remove('hidden');
+            } else {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('supervisor-badge').innerText = `${supervisor.name} (${supervisor.phone})`;
+                document.getElementById('profile-info').innerText = `${supervisor.name} | ${supervisor.phone}`;
+            }
+        }
+
+        function saveSupervisorData() {
+            const name = document.getElementById('reg-name').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            if (!name || !phone) return alert("Заполните ФИО и телефон!");
+            supervisor = { name, phone };
+            localStorage.setItem('supervisorProfile', JSON.stringify(supervisor));
+            checkAuth();
+        }
+
+        function openAuthScreen() {
+            document.getElementById('reg-name').value = supervisor ? supervisor.name : '';
+            document.getElementById('reg-phone').value = supervisor ? supervisor.phone : '';
+            document.getElementById('auth-screen').classList.remove('hidden');
+        }
+
+        const defaultCatalog = {
+            "Снеки": ["Чипсы Salsa", "Чипсы Lays", "Печенье с карамелью", "Сухарики"],
+            "Напитки": ["RC Cola 1л", "Вода 1.5л"]
+        };
+
+        let catalog = JSON.parse(localStorage.getItem('supervisorCatalog')) || defaultCatalog;
+        let currentOrder = {};
+        let savedOrders = [];
+
+        function renderCatalog() {
+            const container = document.getElementById('catalog-container');
+            container.innerHTML = '';
+            for (const [category, products] of Object.entries(catalog)) {
+                let productsHTML = products.map(prod => `
+                    <div class="flex justify-between items-center p-2 bg-gray-700 rounded mb-1">
+                        <span>${prod}</span>
+                        <div class="flex items-center gap-3">
+                            <button onclick="updateQty('${prod}', -1)" class="bg-gray-600 px-3 py-1 rounded">-</button>
+                            <span id="qty-${prod.replace(/\s+/g, '-')}" class="w-6 text-center">0</span>
+                            <button onclick="updateQty('${prod}', 1)" class="bg-green-600 px-3 py-1 rounded">+</button>
+                        </div>
+                    </div>
+                `).join('');
+                container.innerHTML += `<div class="bg-gray-800 rounded-lg overflow-hidden border border-gray-700 mb-3"><div class="p-3 font-bold text-gray-300 border-b border-gray-700">${category}</div><div class="p-2">${productsHTML}</div></div>`;
+            }
+        }
+
+        function updateQty(product, change) {
+            if (!currentOrder[product]) currentOrder[product] = 0;
+            currentOrder[product] += change;
+            if (currentOrder[product] < 0) currentOrder[product] = 0;
+            document.getElementById(`qty-${product.replace(/\s+/g, '-')}`).innerText = currentOrder[product];
+        }
+
+        function addProductToCatalog() {
+            const cat = document.getElementById('new-category').value.trim();
+            const prod = document.getElementById('new-product').value.trim();
+            if(!cat || !prod) return alert("Введите категорию и товар");
+            if (!catalog[cat]) catalog[cat] = [];
+            if (!catalog[cat].includes(prod)) {
+                catalog[cat].push(prod);
+                localStorage.setItem('supervisorCatalog', JSON.stringify(catalog));
+                renderCatalog();
+                document.getElementById('new-product').value = '';
+                alert("Товар добавлен!");
+            }
+        }
+
+        function getGPS() {
+            const status = document.getElementById('gps-status');
+            const manualDiv = document.getElementById('manual-gps');
+            status.innerText = "Ищем спутники...";
+            status.className = "text-sm mt-2 text-yellow-400";
+            if (!navigator.geolocation) return showGPSFallback("GPS не поддерживается");
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    document.getElementById('lat').value = pos.coords.latitude;
+                    document.getElementById('lng').value = pos.coords.longitude;
+                    status.innerText = `✅ Зафиксировано: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+                    status.className = "text-sm mt-2 text-green-400";
+                    manualDiv.classList.add('hidden');
+                },
+                () => { showGPSFallback("GPS заблокирован (введите вручную)"); },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        }
+
+        function showGPSFallback(msg) {
+            document.getElementById('gps-status').innerText = "⚠️ " + msg;
+            document.getElementById('gps-status').className = "text-sm mt-2 text-red-400";
+            document.getElementById('manual-gps').classList.remove('hidden');
+        }
+
+        function saveOrder() {
+            const name = document.getElementById('shop-name').value;
+            const lat = document.getElementById('lat').value;
+            const lng = document.getElementById('lng').value;
+            const phone = document.getElementById('shop-phone').value;
+            if (!name || !lat || !lng) return alert("Укажите название и координаты!");
+
+            const items = Object.entries(currentOrder)
+                .filter(([_, qty]) => qty > 0)
+                .map(([prod, qty]) => ({ name: prod, quantity: qty }));
+
+            if (items.length === 0) return alert("Заказ пуст!");
+
+            savedOrders.push({
+                id: Date.now(),
+                shopName: name,
+                phone: phone,
+                coordinates: [parseFloat(lat), parseFloat(lng)],
+                items: items
+            });
+
+            updateOrdersList();
+            document.getElementById('shop-name').value = '';
+            document.getElementById('shop-phone').value = '';
+            document.getElementById('lat').value = '';
+            document.getElementById('lng').value = '';
+            document.getElementById('gps-status').innerText = "Координаты не заданы";
+            document.getElementById('gps-status').className = "text-sm mt-2 text-gray-400";
+            document.getElementById('manual-gps').classList.add('hidden');
+            currentOrder = {};
+            renderCatalog();
+            alert("✅ Точка добавлена!");
+        }
+
+        function updateOrdersList() {
+            const list = document.getElementById('orders-list');
+            document.getElementById('cart-counter').innerText = savedOrders.length;
+            if (savedOrders.length === 0) return list.innerHTML = '<div class="text-gray-400 text-center py-4">Пока нет заявок</div>';
+            
+            list.innerHTML = savedOrders.map(order => `
+                <div class="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                    <div class="font-bold text-green-400">${order.shopName}</div>
+                    <div class="text-xs text-gray-400 mb-2">Товаров: ${order.items.length}</div>
+                    <ul class="text-sm text-gray-300">${order.items.map(i => `<li>- ${i.name}: <b>${i.quantity}</b></li>`).join('')}</ul>
+                </div>
+            `).join('');
+        }
+
+        function exportJSON() {
+            if (savedOrders.length === 0) return alert("Нет заявок!");
+            const exportData = {
+                supervisor: { name: supervisor.name, phone: supervisor.phone, date: new Date().toISOString().split('T')[0] },
+                orders: savedOrders
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+            const a = document.createElement('a');
+            a.setAttribute("href", dataStr);
+            a.setAttribute("download", `zayavki_${exportData.supervisor.date}.json`);
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        function switchTab(tabId) {
+            ['order', 'list', 'settings'].forEach(id => {
+                document.getElementById(`tab-${id}`).classList.add('hidden');
+                document.getElementById(`btn-tab-${id}`).className = "text-gray-400 flex flex-col items-center";
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`btn-tab-${tabId}`).className = "text-green-400 font-semibold flex flex-col items-center";
+        }
+
+        checkAuth();
+        renderCatalog();
+    </script>
+</body>
+</html>
